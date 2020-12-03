@@ -10,7 +10,7 @@ library(raster)
 #' d) PE
 
 ## Figure of species richness #########
-fn <- readr::read_csv("data/Biodiverse_Insputs/cleaned_global_fishnet-may28-20.csv")
+fn <- readr::read_csv("data/Biodiverse_Inputs/cleaned_global_fishnet-may28-20.csv")
 
 fn_rich <- fn %>% 
   group_by(X, Y) %>% 
