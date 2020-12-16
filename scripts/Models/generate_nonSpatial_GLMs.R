@@ -127,23 +127,23 @@ pd_rand_df2 <- na.omit(pd_rand_df2) %>%
   mutate(Significance =  ifelse(test = randPD <= 0.05, yes = 0, no = 1))
 
 pd_rand_global <- glm(Significance ~ temp + prec + tempSeas +  precSeas +
-                       tempStab + precStab + elev, 
-                    family = binomial(link = "logit"),
-                     data = pd_rand_df2, na.action = "na.fail")
+                        tempStab + precStab + elev, 
+                      family = binomial(link = "logit"),
+                      data = pd_rand_df2, na.action = "na.fail")
 
 pd_rand_dd <- dredge(pd_rand_global)
 
 pd_rand_top <- glm(Significance ~ elev + prec + temp + tempStab, 
-                  data = pd_rand_df2, 
-                  family = binomial(link = "logit"),
-                  na.action = "na.fail")
+                   data = pd_rand_df2, 
+                   family = binomial(link = "logit"),
+                   na.action = "na.fail")
 
 car::vif(pd_rand_top)
 
 pd_rand_second <- glm(Significance ~  prec + temp + tempSeas + tempStab, 
-                     data = pd_rand_df2, 
-                     na.action = "na.fail",
-                     family = binomial(link = "logit"))
+                      data = pd_rand_df2, 
+                      na.action = "na.fail",
+                      family = binomial(link = "logit"))
 
 car::vif(pd_rand_second)
 
@@ -161,17 +161,17 @@ rpd_rand_df2 <- na.omit(rpd_rand_df2) %>%
   mutate(Significance =  ifelse(test = randRPD <= 0.05, yes = 0, no = 1))
 
 rpd_rand_global <- glm(Significance ~ temp + prec + tempSeas +  precSeas +
-                        tempStab + precStab + elev, 
-                      data = rpd_rand_df2, na.action = "na.fail",
-                      family = binomial(link = "logit"))
+                         tempStab + precStab + elev, 
+                       data = rpd_rand_df2, na.action = "na.fail",
+                       family = binomial(link = "logit"))
 
 rpd_rand_dd <- dredge(rpd_rand_global) ## beware of perfect seperation in top models
 
 car::vif(rpd_rand_global) ## tempStab and tempSeas are correlated
 
 rpd_rand_top <- glm(Significance ~ elev + prec + temp + tempSeas + tempStab,
-                   data = rpd_rand_df2, na.action = "na.fail",
-                   family = binomial(link = "logit"))
+                    data = rpd_rand_df2, na.action = "na.fail",
+                    family = binomial(link = "logit"))
 
 car::vif(rpd_rand_top) # vif over five so disregard find fist top model without tempSeas and TempStab together
 
@@ -182,8 +182,8 @@ rpd_rand_top <- glm(Significance ~ elev  + prec + temp + tempStab,
 car::vif(rpd_rand_top)
 
 rpd_rand_second <- glm(Significance ~ elev + prec + precStab + temp,
-                      data = rpd_rand_df2, na.action = "na.fail",
-                      family = binomial(link = "logit"))
+                       data = rpd_rand_df2, na.action = "na.fail",
+                       family = binomial(link = "logit"))
 
 car::vif(rpd_rand_second)
 
@@ -209,8 +209,8 @@ RPD <- c(NA, rpd_new_top$coefficients['prec'], rpd_new_top$coefficients["tempSea
 
 PD_Sig <- c(pd_rand_top$coefficients["temp"], pd_rand_top$coefficients["prec"],
             NA, NA, pd_rand_top$coefficients["tempStab"],
-           NA, pd_rand_top$coefficients["elev"],
-           AIC(pd_rand_top) - AIC(pd_rand_second), MuMIn::Weights(AIC(pd_rand_top, pd_rand_second))[[1]])
+            NA, pd_rand_top$coefficients["elev"],
+            AIC(pd_rand_top) - AIC(pd_rand_second), MuMIn::Weights(AIC(pd_rand_top, pd_rand_second))[[1]])
 
 RPD_Sig <- c(rpd_rand_top$coefficients["temp"], rpd_rand_top$coefficients["prec"], 
              NA, NA,rpd_rand_top$coefficients["tempStab"],
