@@ -1,13 +1,117 @@
-library(raster)
-library(sf)
 library(dplyr)
 library(ggplot2)
-library(scales)
-library(gridExtra)
+library(sf)
+library(raster)
+library(pals)
 
-#' script to generate Figure 2 which displays PD randomizations results for
-#' a) angiosperms
-#' b) butterflies
+#' Script to generate Figure 2, which maps butterfly
+#' a) taxic richness
+#' b) PD
+#' c) RPD
+#' d) PE
+
+## Figure of species richness #########
+fn <- readr::read_csv("data/Biodiverse_Inputs/cleaned_global_fishnet-may28-20.csv")
+
+fn_rich <- fn %>% 
+  group_by(X, Y) %>% 
+  summarise(richness = n())
+
+# na shapefile
+na_maps <- maps::map(regions=c("usa", "mexico", "canada"), plot = FALSE, fill = TRUE) %>%
+  st_as_sf()
+na_but <- st_transform(na_maps, 
+                       crs = "+proj=aea +lat_1=20 +lat_2=60 +lat_0=40 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+na_but_buf <- st_buffer(na_but, dist = 10000)
+
+ggplot() +
+  geom_tile(fn_rich, mapping = aes(x = X, y = Y, fill = richness)) +
+  geom_sf(na_but, mapping = aes(), fill = NA) + 
+  coord_sf(xlim = c(-4850000, 3050000), ylim = c(-2950000, 4550000)) + 
+  scale_fill_viridis_c(trans = "log")
+
+## clip out the non US, MEXICO, and CA areas
+fn_rich_sf <- st_as_sf(fn_rich,
+                       coords = c("X", "Y"),
+                       crs = st_crs(na_but))
+
+fn_coords <- st_intersection(fn_rich_sf, na_but_buf) %>% 
+  st_coordinates() %>% 
+  as.data.frame()
+fn_rich_clip <- st_intersection(fn_rich_sf, na_but_buf) %>% 
+  st_drop_geometry()
+fn_rich_clip <- dplyr::bind_cols(fn_rich_clip, fn_coords)
+
+spp_rich <- ggplot() +
+  geom_tile(fn_rich_clip, mapping = aes(x = X, y = Y, fill = richness), alpha = 0.95) +
+  geom_sf(na_but, mapping = aes(), fill = NA, color = "grey25") + 
+  coord_sf(xlim = c(-4850000, 3050000), ylim = c(-2950000, 4550000)) + 
+  scale_fill_viridis_c(trans = "log",  breaks = c(1,10,50,400)) +
+  labs(fill = "Richness") +
+  theme_void()
+
+###### PD AND RPD PLOTS ################
+# na shapefile
+na_maps <- maps::map(regions=c("usa", "mexico", "canada"), plot = FALSE, fill = TRUE) %>%
+  st_as_sf()
+na_but <- st_transform(na_maps, 
+                       crs = "+proj=aea +lat_1=20 +lat_2=60 +lat_0=40 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs")
+
+# PD 
+pd <- raster("data/Biodiverse_Outputs/PD_P.tif")
+crs(pd) <- crs(na_but)
+pd_df <- as.data.frame(pd, xy = TRUE)
+
+## clip out the non US, MEXICO, and CA areas
+pd_sf <- st_as_sf(pd_df,
+                  coords = c("x", "y"),
+                  crs = st_crs(na_but))
+
+pd_coords <- st_join(pd_sf, na_but, join=st_is_within_distance, dist = 1000) %>% 
+  st_coordinates() %>% 
+  as.data.frame()
+pd_clip <- st_join(pd_sf, na_but, join=st_is_within_distance, dist = 1000) %>% 
+  st_drop_geometry()
+pd_clip <- dplyr::bind_cols(pd_clip, pd_coords)
+
+
+pd_plot <- ggplot() +
+  geom_tile(pd_clip, mapping = aes(x = X, y = Y, fill = PD_P)) +
+  geom_sf(na_but, mapping = aes(), fill = NA, color = "grey25") + 
+  coord_sf(xlim = c(-4850000, 3050000), ylim = c(-2950000, 4550000)) + 
+  scale_fill_viridis_c(trans = "log", na.value = "transparent", 
+                       option = "plasma",  breaks = c(0.001,0.01,0.03, 0.1, 0.4)) +
+  labs(fill = "PD") + 
+  theme_void()
+
+## RPD Plot time
+rpd <- raster("data/Biodiverse_Outputs/RPD2.tif")
+crs(rpd) <- crs(na_but)
+rpd_df <- as.data.frame(rpd, xy = TRUE)
+
+## clip out the non US, MEXICO, and CA areas
+rpd_sf <- st_as_sf(rpd_df,
+                   coords = c("x", "y"),
+                   crs = st_crs(na_but))
+
+rpd_coords <- st_join(rpd_sf, na_but, join=st_is_within_distance, dist = 1000) %>% 
+  st_coordinates() %>% 
+  as.data.frame()
+rpd_clip <- st_join(rpd_sf, na_but, join=st_is_within_distance, dist = 1000) %>% 
+  st_drop_geometry()
+rpd_clip <- dplyr::bind_cols(rpd_clip, rpd_coords)
+
+
+rpd_plot <- ggplot() +
+  geom_tile(rpd_clip, mapping = aes(x = X, y = Y, fill = RPD2)) +
+  geom_sf(na_but, mapping = aes(), fill = NA, color = "grey25") + 
+  coord_sf(xlim = c(-4850000, 3050000), ylim = c(-2950000, 4550000)) + 
+  scale_fill_gradientn(trans = "log", na.value = "transparent",
+                       colours = parula(25), guide = "colourbar") +
+  labs(fill = "RPD") + 
+  theme_void()
+
+################ PE PLOTS ###############
 
 # na shapefile
 na_maps <- maps::map(regions=c("usa", "mexico", "canada"), plot = FALSE, fill = TRUE) %>%
@@ -15,68 +119,39 @@ na_maps <- maps::map(regions=c("usa", "mexico", "canada"), plot = FALSE, fill = 
 na_but <- st_transform(na_maps, 
                        crs = "+proj=aea +lat_1=20 +lat_2=60 +lat_0=40 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs")
 
-# READ in plant pd data and butterfly pd data
-plant_pd <- raster("data/Angiosperms/exports/results_PD_P.tiff")
-crs(plant_pd) <- crs(na_but)
-but_pd <- raster("data/Biodiverse_Outputs/PD_P.tif")
-crs(but_pd) <- crs(na_but)
-but_pd_df <- as.data.frame(but_pd, xy = TRUE)
-plant_pd_df <- as.data.frame(plant_pd, xy = TRUE)
+# PE
+pe <- raster("data/Biodiverse_Outputs/PE_WE_P.tif")
+crs(pe) <- crs(na_but)
+pe_df <- as.data.frame(pe, xy = TRUE)
 
-plant_rand_pd <- raster("data/Angiosperms/exports/p_rank_PD_P.tiff")
-crs(plant_rand_pd) <- crs(na_but)
-but_rand_pd <- raster("data/Biodiverse_Outputs/randomization_p_rank_PD_P.tif")
-crs(but_rand_pd) <- crs(na_but)
-but_rand_pd_df <- as.data.frame(but_rand_pd, xy = TRUE)
-plant_rand_pd_df <- as.data.frame(plant_rand_pd, xy = TRUE)
+## clip out the non US, MEXICO, and CA areas
+pe_sf <- st_as_sf(pe_df,
+                  coords = c("x", "y"),
+                  crs = st_crs(na_but))
 
-plant_rand_pd2 <- left_join(plant_rand_pd_df, plant_pd_df)
-but_rand_pd2 <- dplyr::left_join(but_rand_pd_df, but_pd_df)
+pe_coords <- st_join(pe_sf, na_but, join=st_is_within_distance, dist = 1000) %>% 
+  st_coordinates() %>% 
+  as.data.frame()
+pe_clip <- st_join(pe_sf, na_but, join=st_is_within_distance, dist = 1000) %>% 
+  st_drop_geometry()
+pe_clip <- dplyr::bind_cols(pe_clip, pe_coords)
 
-plant_rand_pdc <- plant_rand_pd2 %>% 
-  mutate(Significance = case_when(p_rank_PD_P <= 0.05 ~ "Low",
-                                  p_rank_PD_P > 0.05 & p_rank_PD_P < 0.95 ~ "Non",
-                                  p_rank_PD_P >= 0.95 ~ "High")) %>% 
-  filter(!is.na(results_PD_P))
-
-plant_rand_pdc2 <- plant_rand_pdc %>% 
-  mutate(Significance = ifelse(is.na(Significance),yes = "Non", no = Significance))
-
-but_rand_pdc <- but_rand_pd2 %>% 
-  mutate(Significance = case_when(randomization_p_rank_PD_P <= 0.05 ~ "Low",
-                                  randomization_p_rank_PD_P > 0.05 & randomization_p_rank_PD_P < 0.95 ~ "Non",
-                                  randomization_p_rank_PD_P >= 0.95 ~ "High")) %>% 
-  filter(!is.na(PD_P)) 
-
-
-but_rand_pdc2 <- but_rand_pdc %>% 
-  mutate(Significance = ifelse(is.na(Significance),yes = "Non", no = Significance))
-
-###### Plot plant PD randomizations
-plant_pd_plot2 <- ggplot() +
-  geom_tile(plant_rand_pdc2, mapping = aes(x = x, y = y, fill = factor(Significance, levels = c("High", "Non", "Low")))) + 
+pe_plot <- ggplot() +
+  geom_tile(pe_clip, mapping = aes(x = X, y = Y, fill = PE_WE_P)) +
   geom_sf(na_but, mapping = aes(), fill = NA, color = "grey25") + 
-  scale_fill_manual(values = c("dodgerblue2", "grey93", "red1")) +
-  labs(fill = "Significance") +
-  ggtitle("A") + 
-  coord_sf(xlim = c(-4850000, 3050000), ylim = c(-2950000, 4550000)) +
-  theme_void() + 
-  theme(plot.title = element_text(size = 14, hjust = 0.25)) +
-  theme(legend.position = c(1.1,0.5))
+  coord_sf(xlim = c(-4850000, 3050000), ylim = c(-2950000, 4550000)) + 
+  scale_fill_viridis_c(trans = "log", na.value = "transparent", 
+                       option = "cividis", breaks = c(0.000001,0.00001,0.0001,0.001)) +
+  labs(fill = "PE") +
+  theme_void()
 
-###### Plot bfly PD randomizations
-but_pd_plot2 <- ggplot() +
-  geom_tile(but_rand_pdc2, mapping = aes(x = x, y = y, fill = factor(Significance, levels = c("High", "Non", "Low")))) + 
-  geom_sf(na_but, mapping = aes(), fill = NA, color = "grey25") + 
-  scale_fill_manual(values = c("dodgerblue2", "grey93", "red1")) +
-  labs(fill = "Significance") +
-  ggtitle("B") + 
-  coord_sf(xlim = c(-4850000, 3050000), ylim = c(-2950000, 4550000)) +
-  theme_void() + 
-  theme(plot.title = element_text(size = 14, hjust = 0.25)) +
-  theme(legend.position = c(1.1,0.5))
 
-pds2 <- cowplot::plot_grid(plant_pd_plot2, but_pd_plot2, ncol = 2)
+## Combine plots into 4 panel plot
 
-ggsave(plot = pds2, filename = "Figure_Outputs/Figure2.png",
-       dpi = 450, device = "png", width = 10, height = 8)
+cp <- cowplot::plot_grid(spp_rich, pd_plot, rpd_plot, pe_plot,
+                         ncol = 2, labels = c("A", "B",
+                                              "C", "D"),label_y = 0.85,
+                         hjust = -3, vjust = 0.5)
+
+ggsave(filename = "figure_outputs/Figure2.png", plot = cp,
+       dpi = 350, device = "png", width = 10, height = 9)

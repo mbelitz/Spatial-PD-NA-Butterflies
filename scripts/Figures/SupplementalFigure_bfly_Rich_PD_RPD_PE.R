@@ -153,5 +153,5 @@ cp <- cowplot::plot_grid(spp_rich, pd_plot, rpd_plot, pe_plot,
                                               "C", "D"),label_y = 0.85,
                          hjust = -3, vjust = 0.5)
 
-ggsave(filename = "figure_outputs/Figure1.png", plot = cp,
-       dpi = 300, device = "png", width = 12, height = 12)
+ggsave(filename = "figure_outputs/SupplementalFigure_Rich_PD_RPD_PE.png", plot = cp,
+       dpi = 300, device = "png", width = 10, height = 9)
